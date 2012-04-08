@@ -1,10 +1,5 @@
 package de.exoticorn.glestest
 
-import android.opengl.GLSurfaceView
-import android.content.Context
-
-import javax.microedition.khronos.opengles.GL10
-import javax.microedition.khronos.egl.EGLConfig
 import android.opengl.GLES20._
 import android.util.Log
 
@@ -15,12 +10,12 @@ case class TouchStart(x: Float, y: Float) extends InputEvent
 case class TouchMove(x: Float, y: Float) extends InputEvent
 case object TouchEnd extends InputEvent
 
-class Renderer(context: Context) extends GLSurfaceView.Renderer {
+class Game {
   private var quadBuffer: FloatBuffer = _
   private var shaderProgram: Int = _
   private var positionAttribute: Int = _
 
-  def onDrawFrame(unused: GL10) {
+  def drawFrame() {
     glClear(GL_COLOR_BUFFER_BIT)
 
     glUseProgram(shaderProgram)
@@ -29,18 +24,18 @@ class Renderer(context: Context) extends GLSurfaceView.Renderer {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
   }
 
-  def onSurfaceChanged(unused: GL10, width: Int, height: Int) {
+  def setSize(width: Int, height: Int) {
     glViewport(0, 0, width, height)
   }
 
-  def onSurfaceCreated(unused: GL10, config: EGLConfig) {
+  def create() {
     glClearColor(0, 1, 0, 1)
 
     val quadCoords = Array(
-      -1.0f, -1.0f,
-      1.0f, -1.0f,
-      -1.0f, 1.0f,
-      1.0f, 1.0f)
+      -0.75f, -0.75f,
+      0.75f, -0.75f,
+      -0.75f, 0.75f,
+      0.75f, 0.75f)
 
     val vbb = ByteBuffer.allocateDirect(quadCoords.size * 4)
     vbb.order(ByteOrder.nativeOrder())
@@ -86,7 +81,7 @@ class Renderer(context: Context) extends GLSurfaceView.Renderer {
     positionAttribute = glGetAttribLocation(shaderProgram, "position")
   }
 
-  def onInputEvent(e: InputEvent) {
+  def inputEvent(e: InputEvent) {
     e match {
       case TouchStart(x, y) =>
         glClearColor(x / 1280.0f, y / 768.0f, 0, 1)

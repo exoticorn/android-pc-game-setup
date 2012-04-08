@@ -26,26 +26,31 @@ object General {
       keyalias in Android := "change-me",
       libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.RC1" % "test"
     )
-
-  lazy val PCBuild = config("pcBuild").extend(Runtime)
-
-  lazy val pcBuildSettings = LWJGLPlugin.lwjglSettings
 }
 
 object AndroidBuild extends Build {
-  lazy val main = Project (
-    "GLES Test Project",
+  lazy val androidBuild = Project (
+    "androidBuild",
     file("."),
-    settings = General.fullAndroidSettings
+    settings = General.fullAndroidSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
+	Seq(
+	  base / "src/game"
+	)
+      }
+    )
   )
 
-  lazy val tests = Project (
-    "tests",
-    file("tests"),
-    settings = General.settings ++
-               AndroidTest.settings ++
-               General.proguardSettings ++ Seq (
-      name := "GLES Test ProjectTests"
+  lazy val pcBuild = Project (
+    "pcBuild",
+    file("."),
+    settings = Defaults.defaultSettings ++ LWJGLPlugin.lwjglSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <<= baseDirectory { base =>
+	Seq(
+	  base / "src/pcbuild",
+	  base / "src/game"
+	)
+      }
     )
-  ) dependsOn main
+  )
 }
