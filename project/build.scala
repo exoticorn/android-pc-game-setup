@@ -43,11 +43,10 @@ object AndroidBuild extends Build {
 
   lazy val pcBuild = Project (
     "pcBuild",
-    file("."),
+    file("pcProject"),
     settings = Defaults.defaultSettings ++ LWJGLPlugin.lwjglSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <<= baseDirectory { base =>
+      unmanagedSourceDirectories in Compile <++= baseDirectory { base =>
 	Seq(
-	  base / "src/pcbuild",
 	  base / "src/game"
 	)
       }

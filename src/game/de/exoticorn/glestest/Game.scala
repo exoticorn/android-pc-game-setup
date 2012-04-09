@@ -14,11 +14,16 @@ class Game {
   private var quadBuffer: FloatBuffer = _
   private var shaderProgram: Int = _
   private var positionAttribute: Int = _
+  private var offsetUniform: Int = _
+  private var offset = 0.0f
 
   def drawFrame() {
+    offset = (offset + 1 / 60.0f) % 1.0f
+
     glClear(GL_COLOR_BUFFER_BIT)
 
     glUseProgram(shaderProgram)
+    glUniform1f(offsetUniform, offset)
     glVertexAttribPointer(positionAttribute, 2, GL_FLOAT, false, 8, quadBuffer)
     glEnableVertexAttribArray(positionAttribute)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
@@ -32,10 +37,10 @@ class Game {
     glClearColor(0, 1, 0, 1)
 
     val quadCoords = Array(
-      -0.75f, -0.75f,
-      0.75f, -0.75f,
-      -0.75f, 0.75f,
-      0.75f, 0.75f)
+      -1.0f, -1.0f,
+      1.0f, -1.0f,
+      -1.0f, 1.0f,
+      1.0f, 1.0f)
 
     val vbb = ByteBuffer.allocateDirect(quadCoords.size * 4)
     vbb.order(ByteOrder.nativeOrder())
@@ -56,13 +61,20 @@ class Game {
 
     val vertexShaderCode = """
       attribute vec2 position;
+      varying highp vec3 rayDirection;
       void main() {
         gl_Position = vec4(position, 0, 1);
+        rayDirection = vec3(position.x * 1.6, position.y, 1);
       }
     """
     val fragmentShaderCode = """
+      varying highp vec3 rayDirection;
+      uniform lowp float offset;
       void main() {
-        gl_FragColor= vec4(1, 0, 1, 1);
+      	mediump float angle = atan(rayDirection.x, rayDirection.y);
+        highp float z = rayDirection.z * inversesqrt(rayDirection.x * rayDirection.x + rayDirection.y * rayDirection.y);
+        lowp float brightness = clamp(1.0 - z * 0.1, 0.0, 1.0);
+        gl_FragColor= vec4(mod(angle / (3.141 / 4.0) + offset, 1.0), mod(z + offset * 2.0, 1.0), 0, 1) * brightness;
       }
     """
 
@@ -79,6 +91,7 @@ class Game {
     }
 
     positionAttribute = glGetAttribLocation(shaderProgram, "position")
+    offsetUniform = glGetUniformLocation(shaderProgram, "offset")
   }
 
   def inputEvent(e: InputEvent) {
