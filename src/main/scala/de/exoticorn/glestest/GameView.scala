@@ -2,6 +2,7 @@ package de.exoticorn.glestest
 
 import android.opengl.GLSurfaceView
 import android.content.Context
+import android.os.SystemClock
 
 import javax.microedition.khronos.opengles.GL10
 import javax.microedition.khronos.egl.EGLConfig
@@ -31,6 +32,7 @@ class GameView(context: Context) extends GLSurfaceView(context) {
 
   class GameRenderer extends GLSurfaceView.Renderer {
     val game = new Game
+    var lastTime = SystemClock.uptimeMillis()
 
     def onSurfaceCreated(unused: GL10, config: EGLConfig) {
       game.create()
@@ -41,7 +43,10 @@ class GameView(context: Context) extends GLSurfaceView(context) {
     }
 
     def onDrawFrame(unused: GL10) {
-      game.drawFrame()
+      val thisTime = SystemClock.uptimeMillis()
+      val timeStep = (thisTime - lastTime).toFloat / 1000.0f
+      lastTime = thisTime
+      game.drawFrame(timeStep)
     }
   }
 }

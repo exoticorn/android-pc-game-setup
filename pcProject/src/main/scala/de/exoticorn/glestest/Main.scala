@@ -4,15 +4,17 @@ import org.lwjgl.opengl.{ Display, DisplayMode }
 import org.lwjgl.input.Mouse
 
 object Main extends App {
-  Display.setDisplayMode(new DisplayMode(1280, 768))
-  Display.create()
-
   val width = 1280
   val height = 768
+
+  Display.setDisplayMode(new DisplayMode(width, height))
+  Display.create()
 
   val game = new Game
   game.create()
   game.setSize(width, height)
+
+  var lastTime = System.nanoTime()
 
   while (!Display.isCloseRequested()) {
     while (Mouse.next) {
@@ -26,7 +28,10 @@ object Main extends App {
         game.inputEvent(TouchMove(Mouse.getEventX().toFloat, height - Mouse.getEventY().toFloat))
       }
     }
-    game.drawFrame()
+    val nowTime = System.nanoTime()
+    val timeStep = (nowTime - lastTime).toFloat / 1000000000.0f
+    lastTime = nowTime
+    game.drawFrame(timeStep)
     Display.update()
   }
 
