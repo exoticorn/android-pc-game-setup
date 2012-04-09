@@ -14,6 +14,8 @@ object Main extends App {
   game.create()
   game.setSize(width, height)
 
+  var lastTime = System.nanoTime()
+
   while (!Display.isCloseRequested()) {
     while (Mouse.next) {
       if (Mouse.getEventButton() == 0) {
@@ -26,7 +28,10 @@ object Main extends App {
         game.inputEvent(TouchMove(Mouse.getEventX().toFloat, height - Mouse.getEventY().toFloat))
       }
     }
-    game.drawFrame()
+    val nowTime = System.nanoTime()
+    val timeStep = (nowTime - lastTime).toFloat / 1000000000.0f
+    lastTime = nowTime
+    game.drawFrame(timeStep)
     Display.update()
   }
 

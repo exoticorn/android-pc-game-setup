@@ -39,7 +39,7 @@ abstract class Shader {
   }
 }
 
-class TunnelShader extends Shader {
+class BackgroundShader extends Shader {
   private val shaderProgram = compile(
     """
       attribute vec2 position;
@@ -53,10 +53,14 @@ class TunnelShader extends Shader {
       varying highp vec3 rayDirection;
       uniform lowp float offset;
       void main() {
-      	mediump float angle = atan(rayDirection.x, rayDirection.y);
-        highp float z = rayDirection.z * inversesqrt(rayDirection.x * rayDirection.x + rayDirection.y * rayDirection.y);
+      /*
+        highp float z = rayDirection.z / abs(rayDirection.y);
         lowp float brightness = clamp(1.0 - z * 0.1, 0.0, 1.0);
-        gl_FragColor= vec4(mod(angle / (3.141 / 4.0) + offset, 1.0), mod(z + offset * 2.0, 1.0), 0, 1) * brightness;
+        lowp float onOff = mod(z + offset, 1.0) > 0.5 ? 1.0 : 0.0;
+        lowp vec3 color = vec3(onOff, onOff, onOff) * brightness;
+        gl_FragColor= vec4(color, 1);
+      */
+      gl_FragColor = vec4(0.2, 0.3, 0.2, 1.0);
       }
       """)
 
@@ -76,14 +80,14 @@ class DiscShader extends Shader {
       attribute vec2 position;
       uniform vec2 pos;
       uniform vec2 size;
-      varying vec2 uv;
+      varying lowp vec2 uv;
       void main() {
         gl_Position = vec4(position * size + pos, 0, 1);
         uv = position;
       }
       """,
     """
-      varying vec2 uv;
+      varying lowp vec2 uv;
       void main() {
         mediump float dist = sqrt(dot(uv, uv));
         lowp float brightness = clamp(1.0 - dist + 0.2, 0.0, 1.0);
@@ -112,7 +116,7 @@ class DiscShader extends Shader {
 
 class Game {
   private var quadBuffer: FloatBuffer = _
-  private var tunnelShader: TunnelShader = _
+  private var bgShader: BackgroundShader = _
   private var discShader: DiscShader = _
   private var positionAttribute: Int = _
   private var offsetUniform: Int = _
@@ -120,21 +124,39 @@ class Game {
   private var displayWidth = 640
   private var displayHeight = 480
 
-  private var posX = 0.0f
-  private var posY = 0.0f
+  case class Target(var x: Float, var y: Float, var sx: Float, var sy: Float)
+  private var targets = List.empty[Target]
+  private var targetTimer = 1.0f
 
-  def drawFrame() {
-    offset = (offset + 1 / 60.0f) % 1.0f
+  private val rng = new java.util.Random
+
+  def drawFrame(timeStep: Float) {
+    offset = (offset + timeStep) % 1.0f
+
+    targetTimer -= timeStep
+    if (targetTimer < 0) {
+      targetTimer = 1.0f
+      spawnTarget()
+    }
+
+    targets = targets.filter { target =>
+      target.sy += 300 * timeStep
+      target.x += target.sx * timeStep
+      target.y += target.sy * timeStep
+      math.abs(target.x) < displayWidth + 400 && math.abs(target.y) < displayHeight + 400
+    }
 
     glClear(GL_COLOR_BUFFER_BIT)
 
-    tunnelShader.use(offset)
-    glVertexAttribPointer(tunnelShader.positionAttribute, 2, GL_FLOAT, false, 8, quadBuffer)
+    bgShader.use(offset)
+    glVertexAttribPointer(bgShader.positionAttribute, 2, GL_FLOAT, false, 8, quadBuffer)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
 
     discShader.use(displayWidth, displayHeight)
     glVertexAttribPointer(discShader.positionAttribute, 2, GL_FLOAT, false, 8, quadBuffer)
-    discShader.drawQuad(posX, posY, 100, 100)
+    for (target <- targets) {
+      discShader.drawQuad(target.x, target.y, 100, 100)
+    }
   }
 
   def setSize(width: Int, height: Int) {
@@ -144,7 +166,7 @@ class Game {
   }
 
   def create() {
-    glClearColor(0, 1, 0, 1)
+    glClearColor(0, 0, 0, 1)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -160,15 +182,31 @@ class Game {
     quadBuffer.put(quadCoords)
     quadBuffer.rewind()
 
-    tunnelShader = new TunnelShader
+    bgShader = new BackgroundShader
     discShader = new DiscShader
+  }
+
+  def spawnTarget() {
+    val sx = rng.nextFloat() * 200 + 100
+    val sy = rng.nextFloat() * 200 - 900
+    val x = rng.nextFloat() * 300 - 1000
+    if (rng.nextBoolean()) {
+      targets ::= Target(x, 500, sx, sy)
+    } else {
+      targets ::= Target(-x, 500, -sx, sy)
+    }
   }
 
   def inputEvent(e: InputEvent) {
     e match {
       case TouchStart(x, y) =>
-        posX = x.toFloat * 2 - displayWidth
-        posY = y.toFloat * 2 - displayHeight
+        val tx = x.toFloat * 2 - displayWidth
+        val ty = y.toFloat * 2 - displayHeight
+        targets = targets.filterNot { target =>
+          val dx = target.x - tx
+          val dy = target.y - ty
+          math.sqrt(dx * dx + dy * dy) < 100
+        }
       case TouchMove(x, y) =>
       case TouchEnd =>
     }
