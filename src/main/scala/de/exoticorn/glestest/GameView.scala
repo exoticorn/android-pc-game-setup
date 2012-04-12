@@ -11,7 +11,7 @@ import java.lang.Runnable
 
 class GameView(context: Context) extends GLSurfaceView(context) {
   setEGLContextClientVersion(2)
-  val renderer = new GameRenderer()
+  val renderer = new GameRenderer(context)
   setRenderer(renderer)
 
   override def onTouchEvent(e: MotionEvent): Boolean = e.getActionMasked() match {
@@ -30,8 +30,21 @@ class GameView(context: Context) extends GLSurfaceView(context) {
     true
   }
 
-  class GameRenderer extends GLSurfaceView.Renderer {
-    val game = new Game
+  class GameRenderer(context: Context) extends GLSurfaceView.Renderer {
+    object MyAssetStore extends AssetStore {
+      def open(filename: String)(cb: java.io.InputStream => Unit) {
+	val is = context.getAssets().open(filename)
+	try {
+	  cb(is)
+	} finally {
+	  if(is != null) {
+	    is.close()
+	  }
+	}
+      }
+    }
+  
+    val game = new Game(MyAssetStore)
     var lastTime = SystemClock.uptimeMillis()
 
     def onSurfaceCreated(unused: GL10, config: EGLConfig) {

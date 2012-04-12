@@ -37,7 +37,8 @@ object AndroidBuild extends Build {
 	Seq(
 	  base / "src/game"
 	)
-      }
+      },
+      mainAssetsPath in Android <<= baseDirectory { base => base / "assets" }
     )
   )
 
@@ -49,7 +50,8 @@ object AndroidBuild extends Build {
 	Seq(
 	  base / "src/game"
 	)
-      }
+      },
+      unmanagedResourceDirectories in Compile <++= baseDirectory { base => Seq(base / "assets") }
     )
   )
 }

@@ -10,6 +10,10 @@ case class TouchStart(x: Float, y: Float) extends InputEvent
 case class TouchMove(x: Float, y: Float) extends InputEvent
 case object TouchEnd extends InputEvent
 
+abstract class AssetStore {
+  def open(filename: String)(cb: java.io.InputStream => Unit): Unit
+}
+
 abstract class Shader {
   protected def compile(vertexSrc: String, fragmentSrc: String): Int = {
     def makeShader(typ: Int, shaderCode: String) = {
@@ -114,7 +118,7 @@ class DiscShader extends Shader {
   }
 }
 
-class Game {
+class Game(assets: AssetStore) {
   private var quadBuffer: FloatBuffer = _
   private var bgShader: BackgroundShader = _
   private var discShader: DiscShader = _
@@ -123,6 +127,10 @@ class Game {
   private var offset = 0.0f
   private var displayWidth = 640
   private var displayHeight = 480
+
+  assets.open("test-texture.png") { is =>
+    Log.w("Game", is.toString)
+  }
 
   case class Target(var x: Float, var y: Float, var sx: Float, var sy: Float)
   private var targets = List.empty[Target]
