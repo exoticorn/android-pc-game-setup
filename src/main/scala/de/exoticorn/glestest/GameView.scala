@@ -9,6 +9,9 @@ import javax.microedition.khronos.egl.EGLConfig
 import android.view.MotionEvent
 import java.lang.Runnable
 
+import java.nio.ByteBuffer
+import android.graphics.{Bitmap, BitmapFactory}
+
 class GameView(context: Context) extends GLSurfaceView(context) {
   setEGLContextClientVersion(2)
   val renderer = new GameRenderer(context)
@@ -32,7 +35,7 @@ class GameView(context: Context) extends GLSurfaceView(context) {
 
   class GameRenderer(context: Context) extends GLSurfaceView.Renderer {
     object MyAssetStore extends AssetStore {
-      def open(filename: String)(cb: java.io.InputStream => Unit) {
+      def open[A](filename: String)(cb: java.io.InputStream => A): A = {
 	val is = context.getAssets().open(filename)
 	try {
 	  cb(is)
@@ -40,6 +43,15 @@ class GameView(context: Context) extends GLSurfaceView(context) {
 	  if(is != null) {
 	    is.close()
 	  }
+	}
+      }
+
+      def readImage(filename: String): Image = {
+	open(filename) { is =>
+	  val bitmap = BitmapFactory.decodeStream(is)
+	  val buffer = ByteBuffer.allocateDirect(bitmap.getWidth * bitmap.getHeight * 4)
+	  bitmap.copyPixelsToBuffer(buffer)
+	  new Image(bitmap.getWidth, bitmap.getHeight, buffer)
 	}
       }
     }

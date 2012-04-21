@@ -11,7 +11,25 @@ case class TouchMove(x: Float, y: Float) extends InputEvent
 case object TouchEnd extends InputEvent
 
 abstract class AssetStore {
-  def open(filename: String)(cb: java.io.InputStream => Unit): Unit
+  def open[A](filename: String)(cb: java.io.InputStream => A): A
+  def readImage(filename: String): Image
+}
+
+class Image(val width: Int, val height: Int, val data: ByteBuffer)
+
+class Texture(val name: Int)
+
+object Texture {
+  def apply(filename: String)(implicit as: AssetStore): Texture = {
+    val image = as.readImage(filename)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+    Log.w("Texture", image.height.toString)
+    new Texture(0)
+  }
 }
 
 abstract class Shader {
@@ -128,9 +146,9 @@ class Game(assets: AssetStore) {
   private var displayWidth = 640
   private var displayHeight = 480
 
-  assets.open("test-texture.png") { is =>
-    Log.w("Game", is.toString)
-  }
+  implicit private val as = assets
+
+  private val texture = Texture("test-texture.png")
 
   case class Target(var x: Float, var y: Float, var sx: Float, var sy: Float)
   private var targets = List.empty[Target]

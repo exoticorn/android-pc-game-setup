@@ -1,6 +1,6 @@
 package android.opengl
 
-import java.nio.FloatBuffer
+import java.nio.{ FloatBuffer, ByteBuffer }
 import org.lwjgl.opengl.{ GL20, GL11 }
 
 object GLES20 {
@@ -13,6 +13,17 @@ object GLES20 {
   val GL_ONE = GL11.GL_ONE
   val GL_SRC_ALPHA = GL11.GL_SRC_ALPHA
   val GL_ONE_MINUS_SRC_ALPHA = GL11.GL_ONE_MINUS_SRC_ALPHA
+  val GL_TEXTURE_2D = GL11.GL_TEXTURE_2D
+  val GL_RGBA = GL11.GL_RGBA
+  val GL_UNSIGNED_BYTE = GL11.GL_UNSIGNED_BYTE
+  val GL_TEXTURE_MIN_FILTER = GL11.GL_TEXTURE_MIN_FILTER
+  val GL_TEXTURE_MAG_FILTER = GL11.GL_TEXTURE_MAG_FILTER
+  val GL_TEXTURE_WRAP_S = GL11.GL_TEXTURE_WRAP_S
+  val GL_TEXTURE_WRAP_T = GL11.GL_TEXTURE_WRAP_T
+  val GL_NEAREST = GL11.GL_NEAREST
+  val GL_LINEAR = GL11.GL_LINEAR
+  val GL_CLAMP_TO_EDGE = GL11.GL_CLAMP
+  val GL_REPEAT = GL11.GL_REPEAT
 
   def glClearColor(r: Float, g: Float, b: Float, a: Float) { GL11.glClearColor(r, g, b, a) }
   def glClear(f: Int) { GL11.glClear(f) }
@@ -40,4 +51,9 @@ object GLES20 {
   def glEnableVertexAttribArray(attr: Int) { GL20.glEnableVertexAttribArray(attr) }
   def glDrawArrays(prim: Int, start: Int, count: Int) { GL11.glDrawArrays(prim, start, count) }
   def glViewport(x: Int, y: Int, w: Int, h: Int) { GL11.glViewport(x, y, w, h) }
+
+  def glTexImage2D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, tpe: Int, data: ByteBuffer) {
+    GL11.glTexImage2D(target, level, internalFormat, width, height, border, format, tpe, data)
+  }
+  def glTexParameteri(target: Int, pname: Int, param: Int) { GL11.glTexParameteri(target, pname, param) }
 }
