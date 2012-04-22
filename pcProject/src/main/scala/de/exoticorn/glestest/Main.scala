@@ -31,8 +31,16 @@ object MyAssetStore extends AssetStore {
       convertOp.filter(img, inputImage)
       val data = inputImage.getRaster.getDataBuffer.asInstanceOf[DataBufferByte].getData()
       val buffer = ByteBuffer.allocateDirect(data.size)
-      buffer.put(data)
-      buffer.rewind()
+      for (i <- 0 until img.getWidth * img.getHeight) {
+        val a = data(i * 4)
+        val b = data(i * 4 + 1)
+        val g = data(i * 4 + 2)
+        val r = data(i * 4 + 3)
+        buffer.put(i * 4, r)
+        buffer.put(i * 4 + 1, g)
+        buffer.put(i * 4 + 2, b)
+        buffer.put(i * 4 + 3, a)
+      }
       new Image(img.getWidth, img.getHeight, buffer)
     }
   }
