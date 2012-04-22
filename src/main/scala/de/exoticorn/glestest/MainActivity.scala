@@ -8,7 +8,7 @@ class MainActivity extends Activity {
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
-    gameView = new GameView(this)
+    gameView = new GameView(this, new TestGame)
 
     setContentView(gameView)
   }

@@ -1,90 +1,14 @@
 package de.exoticorn.glestest
 
+import de.exoticorn.androidgame._
+
 import android.opengl.GLES20._
 import android.util.Log
 
 import java.nio.{ FloatBuffer, ByteBuffer, ByteOrder }
 
-abstract class InputEvent
-case class TouchStart(x: Float, y: Float) extends InputEvent
-case class TouchMove(x: Float, y: Float) extends InputEvent
-case object TouchEnd extends InputEvent
-
-abstract class AssetStore {
-  def open[A](filename: String)(cb: java.io.InputStream => A): A
-  def readImage(filename: String): Image
-}
-
-class Image(val width: Int, val height: Int, val data: ByteBuffer)
-
-class Texture(val name: Int, val width: Int, val height: Int)
-
-object GLHelper {
-  def checkError(where: String) {
-    val error = glGetError()
-    if (error != GL_NO_ERROR) {
-      val tpe = error match {
-        case GL_INVALID_ENUM => "INVALID ENUM"
-        case GL_INVALID_VALUE => "INVALID VALUE"
-        case GL_INVALID_OPERATION => "INVALID OPERATION"
-        case GL_INVALID_FRAMEBUFFER_OPERATION => "INVALID FRAMEBUFFER OPERATION"
-        case GL_OUT_OF_MEMORY => "OUT OF MEMORY"
-        case _ => "UNKNOWN"
-      }
-      Log.w("Gl error", "%s (%s)".format(tpe, where))
-    }
-  }
-}
-
-object Texture {
-  def apply(filename: String)(implicit as: AssetStore): Texture = {
-    val image = as.readImage(filename)
-    val names = Array(0)
-    glGenTextures(1, names, 0)
-    val name = names(0)
-    glBindTexture(GL_TEXTURE_2D, name)
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data)
-    GLHelper.checkError("glTexImage2d")
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-    GLHelper.checkError("texture parameter")
-    new Texture(name, image.width, image.height)
-  }
-}
-
-abstract class Shader {
-  protected def compile(vertexSrc: String, fragmentSrc: String): Int = {
-    def makeShader(typ: Int, shaderCode: String) = {
-      val shader = glCreateShader(typ)
-      glShaderSource(shader, shaderCode)
-      glCompileShader(shader)
-      val log = glGetShaderInfoLog(shader)
-      if (!log.isEmpty()) {
-        Log.w("GLESTest", log)
-      }
-      shader
-    }
-
-    val vertexShader = makeShader(GL_VERTEX_SHADER, vertexSrc)
-    val fragmentShader = makeShader(GL_FRAGMENT_SHADER, fragmentSrc)
-
-    val shaderProgram = glCreateProgram()
-    glAttachShader(shaderProgram, vertexShader)
-    glAttachShader(shaderProgram, fragmentShader)
-    glLinkProgram(shaderProgram)
-    val log = glGetProgramInfoLog(shaderProgram)
-    if (!log.isEmpty()) {
-      Log.w("GLESTest", log)
-    }
-
-    shaderProgram
-  }
-}
-
 class BackgroundShader extends Shader {
-  private val shaderProgram = compile(
+  protected val program = compile(
     """
       attribute vec2 position;
       varying highp vec3 rayDirection;
@@ -108,18 +32,18 @@ class BackgroundShader extends Shader {
       }
       """)
 
-  val positionAttribute = glGetAttribLocation(shaderProgram, "position")
-  private val offsetUniform = glGetUniformLocation(shaderProgram, "offset")
+  val positionAttribute = glGetAttribLocation(program, "position")
+  val offsetUniform = uniform1f("offset")
 
   def use(offset: Float) {
-    glUseProgram(shaderProgram)
-    glUniform1f(offsetUniform, offset)
+    glUseProgram(program)
+    offsetUniform.set(offset)
     glEnableVertexAttribArray(positionAttribute)
   }
 }
 
 class DiscShader extends Shader {
-  private val shaderProgram = compile(
+  protected val program = compile(
     """
       attribute vec2 position;
       uniform vec2 pos;
@@ -139,30 +63,28 @@ class DiscShader extends Shader {
       }
       """)
 
-  val positionAttribute = glGetAttribLocation(shaderProgram, "position")
-  private val posUniform = glGetUniformLocation(shaderProgram, "pos")
-  private val sizeUniform = glGetUniformLocation(shaderProgram, "size")
-  private val textureUniform = glGetUniformLocation(shaderProgram, "texture")
+  val positionAttribute = glGetAttribLocation(program, "position")
+  val posUniform = uniform2f("pos")
+  val sizeUniform = uniform2f("size")
+  val texUniform = textureUniform("texture")
   private var widthScale = 1.0f
   private var heightScale = 1.0f
 
   def use(width: Int, height: Int) {
-    glUseProgram(shaderProgram)
+    glUseProgram(program)
     widthScale = 1.0f / width
     heightScale = 1.0f / height
   }
 
   def drawQuad(x: Float, y: Float, w: Float, h: Float, texture: Texture) {
-    glActiveTexture(GL_TEXTURE0)
-    glBindTexture(GL_TEXTURE_2D, texture.name)
-    glUniform1i(textureUniform, 0)
-    glUniform2f(posUniform, x * widthScale, -y * heightScale)
-    glUniform2f(sizeUniform, w * widthScale, h * heightScale)
+    texUniform.set(0, texture)
+    posUniform.set(x * widthScale, -y * heightScale)
+    sizeUniform.set(w * widthScale, h * heightScale)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
   }
 }
 
-class Game(assets: AssetStore) {
+class TestGame extends Game {
   private var quadBuffer: FloatBuffer = _
   private var bgShader: BackgroundShader = _
   private var discShader: DiscShader = _
@@ -171,8 +93,6 @@ class Game(assets: AssetStore) {
   private var offset = 0.0f
   private var displayWidth = 640
   private var displayHeight = 480
-
-  implicit private val as = assets
 
   private var texture: Texture = _
 
@@ -219,7 +139,7 @@ class Game(assets: AssetStore) {
     displayHeight = height
   }
 
-  def create() {
+  def create(implicit as: AssetStore) {
     glClearColor(0, 0, 0, 1)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -236,7 +156,7 @@ class Game(assets: AssetStore) {
     quadBuffer.put(quadCoords)
     quadBuffer.rewind()
 
-    texture = Texture("test-texture.png")
+    texture = Texture.load("test-texture.png")
 
     bgShader = new BackgroundShader
     discShader = new DiscShader

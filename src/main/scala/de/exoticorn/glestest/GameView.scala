@@ -1,5 +1,7 @@
 package de.exoticorn.glestest
 
+import de.exoticorn.androidgame._
+  
 import android.opengl.GLSurfaceView
 import android.content.Context
 import android.os.SystemClock
@@ -12,9 +14,9 @@ import java.lang.Runnable
 import java.nio.ByteBuffer
 import android.graphics.{Bitmap, BitmapFactory}
 
-class GameView(context: Context) extends GLSurfaceView(context) {
+class GameView(context: Context, game: Game) extends GLSurfaceView(context) {
   setEGLContextClientVersion(2)
-  val renderer = new GameRenderer(context)
+  val renderer = new GameRenderer
   setRenderer(renderer)
 
   override def onTouchEvent(e: MotionEvent): Boolean = e.getActionMasked() match {
@@ -27,13 +29,13 @@ class GameView(context: Context) extends GLSurfaceView(context) {
   def sendInputEvent(e: InputEvent) = {
     queueEvent(new Runnable {
       def run {
-        renderer.game.inputEvent(e)
+        game.inputEvent(e)
       }
     })
     true
   }
 
-  class GameRenderer(context: Context) extends GLSurfaceView.Renderer {
+  class GameRenderer extends GLSurfaceView.Renderer {
     object MyAssetStore extends AssetStore {
       def open[A](filename: String)(cb: java.io.InputStream => A): A = {
 	val is = context.getAssets().open(filename)
@@ -57,11 +59,10 @@ class GameView(context: Context) extends GLSurfaceView(context) {
       }
     }
   
-    val game = new Game(MyAssetStore)
     var lastTime = SystemClock.uptimeMillis()
 
     def onSurfaceCreated(unused: GL10, config: EGLConfig) {
-      game.create()
+      game.create(MyAssetStore)
     }
 
     def onSurfaceChanged(unused: GL10, width: Int, height: Int) {
