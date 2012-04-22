@@ -51,6 +51,7 @@ class GameView(context: Context) extends GLSurfaceView(context) {
 	  val bitmap = BitmapFactory.decodeStream(is)
 	  val buffer = ByteBuffer.allocateDirect(bitmap.getWidth * bitmap.getHeight * 4)
 	  bitmap.copyPixelsToBuffer(buffer)
+	  buffer.rewind()
 	  new Image(bitmap.getWidth, bitmap.getHeight, buffer)
 	}
       }

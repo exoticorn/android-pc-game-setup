@@ -17,18 +17,40 @@ abstract class AssetStore {
 
 class Image(val width: Int, val height: Int, val data: ByteBuffer)
 
-class Texture(val name: Int)
+class Texture(val name: Int, val width: Int, val height: Int)
+
+object GLHelper {
+  def checkError(where: String) {
+    val error = glGetError()
+    if (error != GL_NO_ERROR) {
+      val tpe = error match {
+        case GL_INVALID_ENUM => "INVALID ENUM"
+        case GL_INVALID_VALUE => "INVALID VALUE"
+        case GL_INVALID_OPERATION => "INVALID OPERATION"
+        case GL_INVALID_FRAMEBUFFER_OPERATION => "INVALID FRAMEBUFFER OPERATION"
+        case GL_OUT_OF_MEMORY => "OUT OF MEMORY"
+        case _ => "UNKNOWN"
+      }
+      Log.w("Gl error", "%s (%s)".format(tpe, where))
+    }
+  }
+}
 
 object Texture {
   def apply(filename: String)(implicit as: AssetStore): Texture = {
     val image = as.readImage(filename)
+    val names = Array(0)
+    glGenTextures(1, names, 0)
+    val name = names(0)
+    glBindTexture(GL_TEXTURE_2D, name)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data)
+    GLHelper.checkError("glTexImage2d")
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-    Log.w("Texture", image.height.toString)
-    new Texture(0)
+    GLHelper.checkError("texture parameter")
+    new Texture(name, image.width, image.height)
   }
 }
 
@@ -82,7 +104,7 @@ class BackgroundShader extends Shader {
         lowp vec3 color = vec3(onOff, onOff, onOff) * brightness;
         gl_FragColor= vec4(color, 1);
       */
-      gl_FragColor = vec4(0.2, 0.3, 0.2, 1.0);
+      gl_FragColor = vec4(0.2, 0.3, 0.4, 1.0);
       }
       """)
 
@@ -105,21 +127,22 @@ class DiscShader extends Shader {
       varying lowp vec2 uv;
       void main() {
         gl_Position = vec4(position * size + pos, 0, 1);
-        uv = position;
+        uv = position * 0.5 + 0.5;
+		uv.y = 1.0 - uv.y;
       }
       """,
     """
       varying lowp vec2 uv;
+      uniform sampler2D texture;
       void main() {
-        mediump float dist = sqrt(dot(uv, uv));
-        lowp float brightness = clamp(1.0 - dist + 0.2, 0.0, 1.0);
-        gl_FragColor = vec4(brightness, brightness, brightness, dist < 1.0 ? 1.0 : 0.0);
+      	gl_FragColor = texture2D(texture, uv);
       }
       """)
 
   val positionAttribute = glGetAttribLocation(shaderProgram, "position")
   private val posUniform = glGetUniformLocation(shaderProgram, "pos")
   private val sizeUniform = glGetUniformLocation(shaderProgram, "size")
+  private val textureUniform = glGetUniformLocation(shaderProgram, "texture")
   private var widthScale = 1.0f
   private var heightScale = 1.0f
 
@@ -129,7 +152,10 @@ class DiscShader extends Shader {
     heightScale = 1.0f / height
   }
 
-  def drawQuad(x: Float, y: Float, w: Float, h: Float) {
+  def drawQuad(x: Float, y: Float, w: Float, h: Float, texture: Texture) {
+    glActiveTexture(GL_TEXTURE0)
+    glBindTexture(GL_TEXTURE_2D, texture.name)
+    glUniform1i(textureUniform, 0)
     glUniform2f(posUniform, x * widthScale, -y * heightScale)
     glUniform2f(sizeUniform, w * widthScale, h * heightScale)
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
@@ -148,7 +174,7 @@ class Game(assets: AssetStore) {
 
   implicit private val as = assets
 
-  private val texture = Texture("test-texture.png")
+  private var texture: Texture = _
 
   case class Target(var x: Float, var y: Float, var sx: Float, var sy: Float)
   private var targets = List.empty[Target]
@@ -181,8 +207,10 @@ class Game(assets: AssetStore) {
     discShader.use(displayWidth, displayHeight)
     glVertexAttribPointer(discShader.positionAttribute, 2, GL_FLOAT, false, 8, quadBuffer)
     for (target <- targets) {
-      discShader.drawQuad(target.x, target.y, 100, 100)
+      discShader.drawQuad(target.x, target.y, 100, 100, texture)
     }
+
+    GLHelper.checkError("end of frame")
   }
 
   def setSize(width: Int, height: Int) {
@@ -207,6 +235,8 @@ class Game(assets: AssetStore) {
     quadBuffer = vbb.asFloatBuffer()
     quadBuffer.put(quadCoords)
     quadBuffer.rewind()
+
+    texture = Texture("test-texture.png")
 
     bgShader = new BackgroundShader
     discShader = new DiscShader

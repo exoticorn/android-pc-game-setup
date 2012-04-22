@@ -1,7 +1,7 @@
 package android.opengl
 
 import java.nio.{ FloatBuffer, ByteBuffer }
-import org.lwjgl.opengl.{ GL20, GL11 }
+import org.lwjgl.opengl.{ GL20, GL11, GL13 }
 
 object GLES20 {
   val GL_COLOR_BUFFER_BIT = GL11.GL_COLOR_BUFFER_BIT
@@ -24,6 +24,15 @@ object GLES20 {
   val GL_LINEAR = GL11.GL_LINEAR
   val GL_CLAMP_TO_EDGE = GL11.GL_CLAMP
   val GL_REPEAT = GL11.GL_REPEAT
+  val GL_TEXTURE0 = GL13.GL_TEXTURE0
+  val GL_NO_ERROR = GL11.GL_NO_ERROR
+  val GL_INVALID_ENUM = GL11.GL_INVALID_ENUM
+  val GL_INVALID_VALUE = GL11.GL_INVALID_VALUE
+  val GL_INVALID_OPERATION = GL11.GL_INVALID_OPERATION
+  val GL_INVALID_FRAMEBUFFER_OPERATION = 4711
+  val GL_OUT_OF_MEMORY = GL11.GL_OUT_OF_MEMORY
+
+  def glGetError() = GL11.glGetError
 
   def glClearColor(r: Float, g: Float, b: Float, a: Float) { GL11.glClearColor(r, g, b, a) }
   def glClear(f: Int) { GL11.glClear(f) }
@@ -47,11 +56,19 @@ object GLES20 {
   def glUseProgram(name: Int) { GL20.glUseProgram(name) }
   def glUniform1f(location: Int, value: Float) { GL20.glUniform1f(location, value) }
   def glUniform2f(location: Int, value1: Float, value2: Float) { GL20.glUniform2f(location, value1, value2) }
+  def glUniform1i(location: Int, value: Int) { GL20.glUniform1i(location, value) }
   def glVertexAttribPointer(attr: Int, numComp: Int, typ: Int, normalize: Boolean, stride: Int, buffer: FloatBuffer) { GL20.glVertexAttribPointer(attr, numComp, normalize, stride, buffer) }
   def glEnableVertexAttribArray(attr: Int) { GL20.glEnableVertexAttribArray(attr) }
   def glDrawArrays(prim: Int, start: Int, count: Int) { GL11.glDrawArrays(prim, start, count) }
   def glViewport(x: Int, y: Int, w: Int, h: Int) { GL11.glViewport(x, y, w, h) }
 
+  def glGenTextures(n: Int, textures: Array[Int], offset: Int) {
+    for (i <- offset until (offset + n)) {
+      textures(i) = GL11.glGenTextures()
+    }
+  }
+  def glBindTexture(target: Int, texture: Int) { GL11.glBindTexture(target, texture) }
+  def glActiveTexture(texture: Int) { GL13.glActiveTexture(texture) }
   def glTexImage2D(target: Int, level: Int, internalFormat: Int, width: Int, height: Int, border: Int, format: Int, tpe: Int, data: ByteBuffer) {
     GL11.glTexImage2D(target, level, internalFormat, width, height, border, format, tpe, data)
   }
